@@ -1,50 +1,59 @@
 ---
-title: "Regression Models Final Project"
+title: "A report on the relationship between key aspects of car design and performance that explain the difference in fuel consumption between automatic and manual transmission"
 author: "Ian Dobbs"
 date: "`r Sys.Date()`"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
+# knitr options
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, fig.cap = TRUE, fig.align = "center",
                       fig.path="figures/", options(scipen=999))
 knitr::opts_current$get('label')
 ```
+
 ```{r captioner, message=FALSE, echo=FALSE, results='hide'}
 # use captioner to add figure number and caption
 library(captioner)
 fig_nums <- captioner()
 fig_nums("figa", "A plot of mpg and transmission data where the red and blue horizontal lines represent the mean mpg for automatic and manual transmission respectively. The green line is the linear regression line")
+fig_nums("figb", "A matrix of correlation coefficients for all variables. Where size of the text relects the level of correlation")
 ```
-## Executive Summary
 
-This report for Motor Trend magazine will use the mtcars dataset to explore the relationship between 10 aspects of car design and performance (the variables), and fuel consumption measured in miles per US gallon, MPG (the outcome). The dataset contains data for 32 cars. In particular, the report will address the question of whether an automatic or manual transmission is better for fuel consumption and will quantify the difference in fuel consumption between automatic and manual transmission using regression models and exploratory data analyses.
+# Executive Summary
+
+This report for Motor Trend magazine will use the mtcars dataset to explore the relationship between 10 aspects of car design and performance (the predictor variables), and fuel consumption measured in miles per US gallon, MPG (the outcome variable). The dataset contains data for 32 cars. In particular, the report will address the question of whether an automatic or manual transmission is better for fuel consumption and will quantify the difference in fuel consumption between automatic and manual transmission using regression models and exploratory data analyses.
+
+_Note that the `echo = FALSE` parameter has been added to the code chunks to prevent printing of the R code._
 
 ## Summary of the data
 ```{r mtcars}
-data(mtcars) # Load the data
-str(mtcars) # and display the structure
+# load the dataset and display the structure
+data(mtcars)
+str(mtcars)
 ```
-Reveals a data frame with 32 observations on 11 (numeric) variables.
+Exploration of the mtcars dataset reveals a data frame with 32 observations on 11 (numeric) variables as follows.
 
-Outcome (dependent) Variable
-[, 1]	mpg	Miles/(US) gallon
+##### Outcome (dependent) Variable
+* **mpg**	Miles/(US) gallon
 
-Predictor (independent) variables
-[, 2]	cyl	Number of cylinders
-[, 3]	disp	Displacement (cu.in.)
-[, 4]	hp	Gross horsepower
-[, 5]	drat	Rear axle ratio
-[, 6]	wt	Weight (1000 lbs)
-[, 7]	qsec	1/4 mile time
-[, 8]	vs	Engine (0 = V-shaped, 1 = straight)
-[, 9]	am	Transmission (0 = automatic, 1 = manual)
-[,10]	gear	Number of forward gears
-[,11]	carb	Number of carburetors
+##### Predictor (independent) variables
+* **cyl**	Number of cylinders
+* **disp**	Displacement (cu.in.)
+* **hp**	Gross horsepower
+* **drat**	Rear axle ratio
+* **wt**	Weight (1000 lbs)
+* **qsec**	1/4 mile time
+* **vs**	Engine (0 = V-shaped, 1 = straight)
+* **am**	Transmission (0 = automatic, 1 = manual)
+* **gear**	Number of forward gears
+* **carb**	Number of carburetors
 
 ## Exploratory data analyses
 
+A plot of the mpg and transmission data provides a visual indication of the relationship between the two. The red and blue horizontal lines represent the mean MPG for automatic and manual transmission respectively and indicate that manual transmission does return a higher mean MPG. 
 ```{r mpg, echo=FALSE, fig.cap=fig_nums("figa")}
+# create the plot for Figure 1 "Fuel Consumption by Transmission"
 manu <- subset(mtcars, am == "1")
 auto <- subset(mtcars, am == "0")
 plot(mtcars$am, mtcars$mpg, 
@@ -59,49 +68,61 @@ legend("topleft",
 abline(lm(mtcars$mpg ~ mtcars$am), col = "green")
 abline(h = mean(auto$mpg), col = "red")
 abline(h = mean(manu$mpg), col = "blue")
+text(0.5, 18, 'mean=17.15')
+text(0.5, 25, 'mean=24.39')
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-## Simple Linear Regresssion
+## Simple Bivariate Regresssion
+
+A simple linear regression analysis will provide further information on the strength of the relationship and the relative impact of transmission on MPG.
 ```{r lm, echo=FALSE}
+# compute the simple bivariate regression and display the coefficients and r squared results
 summary(lm(mpg ~ factor(am), data = mtcars))$coefficients
 summary(lm(mpg ~ factor(am), data = mtcars))$r.squared
 ```
-## Residual Plot
-```{r resid, echo=FALSE}
-par(mfrow = c(2, 2))
-fit <- lm(mpg ~ factor(am), data = mtcars)
-plot(fit)
-```
+We can see that the coefficients are the mean values for where am is equal to 0 and where am is equal to 1. With only one categorical explanatory variable, the linear regression coefficients are the means of each category as shown by the green line on the plot in Figure 1.
+
+__Interpretation:__ The coefficients indicate that manual transmission improves MPG by 7.244939 miles over automatic transmission. The low p-value >0.05 indicates a strong relationship. However, the r.squared value of 0.3597989 indicates that only 36% of the difference in fuel consumption can be explained by transmission type alone. This means we have to examine other variables to find and fit a better explanatory model.   
 
 ## Diagnostic - Correlation Matrix
-```{r cor, echo=FALSE}
+To improve model selection we can test if a relationship exists in the dataset by generating a correlation matrix to visualise the correlation coefficients between the other variables.
+
+```{r cor, echo=FALSE, fig.cap=fig_nums("figb")}
+# Generate the correlation Matrix
 panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
         usr <- par("usr")
         on.exit(par(usr))
         par(usr = c(0, 1, 0, 1))
-        Cor <- cor(x, y) # add/Remove abs function if desired
+        Cor <- cor(x, y) 
         txt <- paste0(prefix, format(c(Cor, 0.123456789), digits = digits)[1])
         if(missing(cex.cor)) {
                 cex.cor <- 0.4 / strwidth(txt)
         }
         text(0.5, 0.5, txt,
-             cex = 1 + cex.cor * Cor) # Resize the text by level of correlation
+             cex = cex.cor * Cor) # Resize the text by level of correlation
 }
-
-# Plotting the correlation matrix
+# Plot the data on the correlation matrix
 pairs(mtcars,
       upper.panel = panel.cor,    # Correlation panel
       lower.panel = panel.smooth,
       gap=0) # Smoothed regression lines
 ```
 
-## Model Selection
+__Interpretation:__ The variables with the strongest relationship (those with coefficients closest to 1 or -1) are cyl, disp, hp and wt. cyl and disp are also highly correlated because displacement is the total volume of all the cylinders in an engine. So we will exclude disp from the model selection. Horsepower also has a relationship to cyl and disp, albeit much weaker, through torque because generally speaking, the more cylinders an engine has, the more horsepower and torque an engine makes. We will consider whether or not hp adds explanatory value by fitting multiple models. 
+
+## Model Selection and Multivariate Regression
 ```{r model, echo=FALSE}
+# Perform a multivariate regression on the model selection that includes am + cyl + hp + wt and display the coefficients
 fit1 <- lm(mpg ~ factor(am) + cyl + hp + wt, mtcars)
 summary(fit1)$coef
 summary(fit1)$r.squared
 par(mfrow = c(2, 2))
 plot(fit1)
+```
 
+# Summary
+
+# Appendix: All R code for this report
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 ```
