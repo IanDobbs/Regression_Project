@@ -18,13 +18,14 @@ library(captioner)
 fig_nums <- captioner()
 fig_nums("figa", "A plot of mpg and transmission data where the red and blue horizontal lines represent the mean mpg for automatic and manual transmission respectively. The green line is the linear regression line")
 fig_nums("figb", "A matrix of correlation coefficients for all variables. Where size of the text relects the level of correlation")
+fig_nums("figc", "Residual plot for the model lm(mpg ~ factor(am) + cyl + hp + wt, mtcars)")
 ```
 
 # Executive Summary
 
-This report for Motor Trend magazine will use the mtcars dataset to explore the relationship between 10 aspects of car design and performance (the predictor variables), and fuel consumption measured in miles per US gallon, MPG (the outcome variable). The dataset contains data for 32 cars. In particular, the report will address the question of whether an automatic or manual transmission is better for fuel consumption and will quantify the difference in fuel consumption between automatic and manual transmission using regression models and exploratory data analyses.
+This report for Motor Trend magazine will use the mtcars dataset to explore the relationship between 10 aspects of car design and performance (the predictor variables), and fuel consumption measured in miles per US gallon, MPG (the outcome variable). The dataset contains data for 32 cars. In particular, the report addresses the question of whether an automatic or manual transmission is better for fuel consumption and quantifies the difference in fuel consumption between automatic and manual transmission using regression models and exploratory data analyses. The conclusion is that manual transmission is better for fuel consumption (+1.48) based on the available data. However, the data and available model still leave 15% to be explained by other factors not included in the data analysis.
 
-_Note that the `echo = FALSE` parameter has been added to the code chunks to prevent printing of the R code._
+_Note that the `echo = FALSE` parameter has been added to the code chunks to prevent printing of the R code, all of which can be found in the appendix._
 
 ## Summary of the data
 ```{r mtcars}
@@ -99,30 +100,55 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
                 cex.cor <- 0.4 / strwidth(txt)
         }
         text(0.5, 0.5, txt,
-             cex = cex.cor * Cor) # Resize the text by level of correlation
+             cex = cex.cor * Cor)
 }
 # Plot the data on the correlation matrix
 pairs(mtcars,
-      upper.panel = panel.cor,    # Correlation panel
+      upper.panel = panel.cor,
       lower.panel = panel.smooth,
-      gap=0) # Smoothed regression lines
+      gap=0)
 ```
 
 __Interpretation:__ The variables with the strongest relationship (those with coefficients closest to 1 or -1) are cyl, disp, hp and wt. cyl and disp are also highly correlated because displacement is the total volume of all the cylinders in an engine. So we will exclude disp from the model selection. Horsepower also has a relationship to cyl and disp, albeit much weaker, through torque because generally speaking, the more cylinders an engine has, the more horsepower and torque an engine makes. We will consider whether or not hp adds explanatory value by fitting multiple models. 
 
 ## Model Selection and Multivariate Regression
-```{r model, echo=FALSE}
+We can now perform a multivariate regression on the model selection that includes am + cyl + hp + wt and display the coefficients to see if we have improved the predictability of our original bivariate model.
+
+```{r modelA, echo=FALSE}
 # Perform a multivariate regression on the model selection that includes am + cyl + hp + wt and display the coefficients
 fit1 <- lm(mpg ~ factor(am) + cyl + hp + wt, mtcars)
 summary(fit1)$coef
 summary(fit1)$r.squared
+```
+
+__Interpretation:__ The r squared value has significantly increase suggesting we now have a model that explains 85% of variation in fuel consumption. This can be compared to an alternative model that excludes hp for the reasons outlined previously. The results are shown in Appendix B and show a slight reduction in r squared, to 83%. Sticking with the model I have conducted some diagnostic tests in Appendix C are the residual plots that do not show any unexpected patterns, and Appendix D the checks for leverage and influence do not show any data values of concern. 
+
+# Summary
+Regression analysis has shown that manual transmission improves fuel consumption (MPG) by 1.48 miles over automatic transmission when cylinders, horsepower and weight are confounding variables. This combination explains 85% of the variation. This seems reasonable when considering other significant factors that influence fuel efficiency and consumption, for example, driving behaviour and tyres, are not included in the available data.
+
+# Appendix A: All R code for this report
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
+# Appendix B: Alternative model excluding hp
+```{r modelB, echo=FALSE}
+# Perform a multivariate regression on the alternative model selection that includes am + cyl + hp + wt and display the coefficients
+fit2 <- lm(mpg ~ factor(am) + cyl + wt, mtcars)
+summary(fit2)$coef
+summary(fit2)$r.squared
+```
+# Appendix C: Residual Plots for selected model
+```{r resid, echo=FALSE,fig.cap=fig_nums("figc") }
+# plot residuals to look for patterns in the data
 par(mfrow = c(2, 2))
 plot(fit1)
 ```
-
-# Summary
-
-# Appendix: All R code for this report
-
-```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+# Appendix D: Diagnostic checks for leverage and influence in the selected model
+```{r influence, echo=FALSE,fig.cap=fig_nums("figa") }
+# calculate dfbetas to check model data for influence and hatvalues to check model data for leverage
+# The hat values are necessarily between 0 and 1 with larger values indicating greater (potential for) leverage.
+# The dfbetas check for influence in the coefficients individually
+infl <- cbind(round(dfbetas(fit1)[ ,3], 3), round(hatvalues(fit1), 3))
+colnames(infl) <- c("dfbetas", "hatvalues")
+infl
 ```
